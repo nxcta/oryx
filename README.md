@@ -1,4 +1,6 @@
-# SecuBot — Enterprise Discord Security Platform
+# SecuBot / Oryx — Enterprise Discord Security Platform
+
+Upstream repository: `https://github.com/nxcta/oryx.git`
 
 SecuBot is a **security-first** Discord protection system focused on **anti-nuke**, **audit-driven detection**, **deterministic risk scoring**, and **automated incident response**. It is designed as a foundation you can extend toward full SIEM-style operations, horizontal scaling, and worker-backed analytics.
 
@@ -75,6 +77,14 @@ flowchart LR
    npm run dev
    ```
 
+6. (Optional) Run the **Oryx control plane API** (licensing + tenant sessions):
+
+   ```bash
+   npm run api:dev
+   ```
+
+   Configure `AUDIT_PEPPER`, `ADMIN_API_TOKEN`, and `COOKIE_SECRET` (see `web/api-server/.env.example`).
+
 ### Required Discord settings
 
 - Enable **Server Members Intent** and **Guild Moderation Intent** in the Discord Developer Portal (audit entry streaming and member-related forensics).
@@ -104,9 +114,9 @@ Set `TRUSTED_OPERATOR_IDS` to a comma-separated list of user IDs allowed to run 
 
 The Discord bot is the **data plane**. The commercial SaaS surface is a separate **control plane** with isolated deployables under `web/`:
 
-- `web/api-server/` — NestJS control API (auth, keys, RBAC, audit, realtime tickets)
-- `web/admin-dashboard/` — internal SOC / dev console (SSO, IP-restricted)
-- `web/owner-dashboard/` — tenant server-owner console (scoped to a single guild)
+- `web/api-server/` — **Fastify** control API (licensing keys, redemption, tenant sessions, control audit) — run: `npm run api:dev`
+- `web/admin-dashboard/` — internal SOC / dev console (Next.js bootstrap; SSO, IP-restricted)
+- `web/owner-dashboard/` — tenant server-owner console (Next.js bootstrap; scoped to a single guild)
 
 Operational hardening, hosting topology, licensing/key cryptography, CI/CD, DR, and launch gating are documented in:
 

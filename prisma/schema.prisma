@@ -78,3 +78,75 @@ model PermissionSnapshot {
 
   @@index([guildId, createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Control plane (dashboards, licensing, operator audit) — same DB, isolated
+// tables. Split to a dedicated database + Prisma schema when traffic warrants.
+// ---------------------------------------------------------------------------
+
+enum ControlKeyStatus {
+  ACTIVE
+  REDEEMED
+  REVOKED
+  EXPIRED
+}
+
+/// One-time (or explicitly multi-use) access keys for server-owner console.
+model ControlAccessKey {
+  id               String           @id @default(cuid())
+  /// SHA-256 hex of raw secret material (never store raw).
+  keyHash          String           @unique
+  /// Non-secret prefix for support correlation (e.g. first segment of encoded key).
+  lookupPrefix     String
+  status           ControlKeyStatus @default(ACTIVE)
+  /// JSON string[] scopes for RBAC at redemption time.
+  scopesJson       Json
+  /// If set, redemption must bind this Discord guild id.
+  preboundGuildId  String?
+  createdAt        DateTime         @default(now())
+  expiresAt        DateTime
+  redeemedAt       DateTime?
+  redeemedByUserId String?
+  boundGuildId     String?
+  revokedAt        DateTime?
+  revokeReason     String?
+  /// Admin SSO subject / internal operator id (opaque string).
+  createdBySubject String?
+  redemptionIpHash String?
+
+  @@index([lookupPrefix, createdAt])
+  @@index([status, expiresAt])
+}
+
+/// Opaque browser/API sessions for admin vs tenant consoles.
+model ControlSession {
+  id               String   @id @default(cuid())
+  /// SHA-256 hex of opaque session token delivered to client (cookie/bearer).
+  tokenHash        String   @unique
+  kind             String
+  discordUserId    String?
+  guildId          String?
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+  lastSeenAt       DateTime @default(now())
+  revoked          Boolean  @default(false)
+  /// Bump to invalidate all sessions for a user/guild without scanning rows.
+  version          Int      @default(0)
+
+  @@index([kind, guildId])
+  @@index([expiresAt])
+}
+
+/// Control-plane audit log (distinct from Discord security stream).
+model ControlAuditLog {
+  id        String   @id @default(cuid())
+  actorKind String
+  actorId   String?
+  action    String
+  ipHash    String?
+  metadata  Json
+  createdAt DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([actorKind, actorId])
+}

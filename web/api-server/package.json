@@ -1,14 +1,30 @@
 {
   "name": "@secubot/api-server",
   "private": true,
-  "version": "0.0.0",
-  "description": "SecuBot control plane API (NestJS) — see README.md",
+  "version": "0.1.0",
+  "description": "SecuBot control plane API — licensing, sessions, tenant/admin RBAC foundation",
   "type": "module",
-  "scripts": {
-    "start:dev": "echo \"Generate NestJS app in this directory (nest new) and wire scripts.\" && exit 1",
-    "build": "echo \"Not generated yet\" && exit 1"
-  },
   "engines": {
     "node": ">=20.10.0"
+  },
+  "scripts": {
+    "dev": "node --import tsx src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^10.0.2",
+    "@fastify/rate-limit": "^10.2.0",
+    "@prisma/client": "^6.8.2",
+    "fastify": "^5.2.1",
+    "pino": "^9.6.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
   }
 }

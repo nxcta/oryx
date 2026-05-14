@@ -4,6 +4,9 @@
   "private": true,
   "description": "Enterprise-grade Discord security, anti-nuke, and incident response platform",
   "type": "module",
+  "workspaces": [
+    "web/api-server"
+  ],
   "engines": {
     "node": ">=20.10.0"
   },
@@ -14,6 +17,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
+    "api:dev": "npm -w @secubot/api-server run dev",
+    "api:build": "npm -w @secubot/api-server run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src --max-warnings 0",

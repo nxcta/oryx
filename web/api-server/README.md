@@ -1,43 +1,59 @@
 # SecuBot Control Plane API (`web/api-server`)
 
-This deployable is the **authoritative backend** for:
+Codename: **Oryx** (repository: `nxcta/oryx`).
 
-- internal **admin/SOC** operations,
-- **tenant (server owner)** operations,
-- **license key** lifecycle (mint, redeem, revoke),
-- **session** issuance and verification,
-- **realtime ticket** minting for websocket connections,
-- **audit append** endpoints and export orchestration.
+This service is the **first production coding phase** for the SaaS control plane: it implements **secure access keys**, **one-time redemption**, **tenant sessions** (HttpOnly cookie), and **append-only control audit** events.
 
-## Recommended stack
+## Why this phase was chosen first
 
-- **NestJS** + TypeScript
-- **PostgreSQL** + Prisma (consider a dedicated schema `controlplane` or a separate database from the bot runtime DB)
-- **Redis** for sessions, rate limits, WS adapter, locks
-- **OpenTelemetry** + Prometheus metrics
-- **Zod** (or `class-validator`) for strict request validation at the edge of each controller
+Both the **internal admin console** and the **server-owner console** depend on the same primitives:
 
-## Bootstrap (local)
+- issuance/revocation/audit of access keys
+- authenticated tenant sessions with **guild binding**
+- centralized audit for human and automated actions
+
+Shipping dashboards before this layer guarantees rework and weaker security boundaries.
+
+## Endpoints (v0)
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/health` | none | LB health |
+| `POST` | `/internal/v1/keys` | `x-admin-token` | Mint a one-time owner key (returns `rawKey` once) |
+| `POST` | `/internal/v1/keys/:id/revoke` | `x-admin-token` | Revoke an active key |
+| `POST` | `/v1/auth/redeem` | none (rate limited) | Redeem key → binds guild + Discord user → sets `oryx_tenant` cookie |
+| `GET` | `/v1/tenant/me` | `oryx_tenant` cookie | Returns session claims |
+| `POST` | `/v1/tenant/logout` | cookie | Revokes session server-side + clears cookie |
+
+> Replace `x-admin-token` with SSO-backed service identity when your IdP integration lands; keep the route split (`/internal/*`) so edge ACLs can block it from the public internet.
+
+## Database
+
+Uses the **root** Prisma schema (`../../prisma/schema.prisma`) models:
+
+- `ControlAccessKey`
+- `ControlSession`
+- `ControlAuditLog`
+
+Run from repo root:
 
 ```bash
-cd web/api-server
 npm install
-npm run start:dev
+npm run db:push
+npm run db:generate
 ```
 
-> The repository ships **policy and scaffolding metadata** here; generate the NestJS project in this folder using your org’s standard template, then align modules to `docs/ENTERPRISE_PRODUCTION_AND_OPERATIONS.md`.
+## Run
 
-## Security invariants
+```bash
+npm run api:dev
+```
 
-- **No Discord bot token** on this service.
-- **RLS** on all tenant tables; admin queries use a distinct DB role with explicit bypass procedures (preferably still logged).
-- **Separate JWT signing keys** for admin vs tenant if you use JWT at all; prefer **opaque server sessions** stored in Redis keyed by random session IDs.
+Configure env vars from `web/api-server/.env.example` (either export them or load via your process manager).
 
-## Suggested module boundaries
+## Security notes
 
-- `AuthAdminModule` (SSO/OIDC)
-- `AuthTenantModule` (redeem + Discord OAuth binding)
-- `KeysModule` (HMAC/hashed key storage, issuance workflows)
-- `GuildsModule` (admin list + tenant single-guild views)
-- `RealtimeModule` (short-lived WS tickets)
-- `AuditModule` (append-only ingestion from bot workers + human actions)
+- Raw keys are **never** stored; only **SHA-256** hashes are persisted.
+- Session cookies are **opaque**; only **SHA-256** hashes are persisted.
+- Redemption uses a **transaction** with `updateMany` to reduce double-spend races under concurrency.
+- Next hardening steps: per-route rate limits on `/v1/auth/redeem`, Redis-backed session versioning, Discord OAuth proof before binding `guildId`.
