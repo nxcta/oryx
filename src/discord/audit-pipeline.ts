@@ -20,8 +20,8 @@ export function registerAuditPipeline(deps: AuditPipelineDeps): void {
   const { client, log, configService, recorder, responder, engines } = deps;
 
   client.on(Events.GuildAuditLogEntryCreate, async (entry: GuildAuditLogsEntry, guild) => {
-    const g = guild ?? entry.guild;
-    if (!g) return;
+    if (!guild) return;
+    const g = guild;
     try {
       const policy = await configService.ensureGuild(g);
       if (!policy.features.antiNuke) return;

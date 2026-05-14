@@ -11,6 +11,10 @@ const envSchema = z.object({
   ADMIN_API_TOKEN: z.string().min(24),
   /** Cookie signing secret for @fastify/cookie (rotate on incident). */
   COOKIE_SECRET: z.string().min(32),
+  /** Optional e.g. `.example.com` when API + sites share parent domain (omit for host-only cookies). */
+  COOKIE_DOMAIN: z.string().min(3).optional(),
+  /** Shared secret for Next.js BFF → `/v1/bff/redeem` (server-side only). */
+  BFF_SERVER_SECRET: z.string().min(24).optional(),
   LOG_LEVEL: z
     .enum(["trace", "debug", "info", "warn", "error", "fatal"])
     .default("info"),

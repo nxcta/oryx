@@ -121,6 +121,8 @@ The Discord bot is the **data plane**. The commercial SaaS surface is a separate
 Operational hardening, hosting topology, licensing/key cryptography, CI/CD, DR, and launch gating are documented in:
 
 - `docs/ENTERPRISE_PRODUCTION_AND_OPERATIONS.md`
+- `docs/DEPLOY_AND_RUN.md` (end-to-end run + env wiring)
+- `docs/WISPBYTE_BOT_HOSTING.md` (Discord bot on Wispbyte — **choose Node.js**)
 
 ## Tests
 

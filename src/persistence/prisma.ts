@@ -4,6 +4,6 @@ export type DbClient = PrismaClient;
 
 export function createPrismaClient(): DbClient {
   return new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+    log: process.env["NODE_ENV"] === "development" ? ["warn", "error"] : ["error"],
   });
 }

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type { DbClient } from "../persistence/prisma.js";
 import type { Logger } from "../logging/logger.js";
 import type { AntiNukeEvaluation } from "../security/anti-nuke/engine.js";
@@ -26,10 +27,10 @@ export class IncidentRecorder {
           guildId: input.guildId,
           correlationId: input.correlationId,
           eventType: input.eventType,
-          actorId: input.actorId ?? undefined,
-          targetId: input.targetId ?? undefined,
-          payload: input.payload,
-          shardId: input.shardId ?? undefined,
+          actorId: input.actorId ?? null,
+          targetId: input.targetId ?? null,
+          payload: input.payload as Prisma.InputJsonValue,
+          shardId: input.shardId ?? null,
           nodeId: this.nodeId,
         },
       });

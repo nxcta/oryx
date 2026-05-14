@@ -1,12 +1,10 @@
 import { z } from "zod";
 import type { FastifyInstance } from "fastify";
-import { ControlKeyStatus } from "@prisma/client";
 import type { ControlApiEnv } from "../config/env.js";
-import { randomTokenUrlSafe, sha256Hex } from "../lib/crypto.js";
 import { writeControlAudit } from "../lib/audit.js";
 import { getPrisma } from "../lib/prisma.js";
-
-const TENANT_COOKIE = "oryx_tenant";
+import { redeemAccessKey } from "../services/redeem.js";
+import { TENANT_COOKIE } from "../lib/tenant-session.js";
 
 const redeemBody = z.object({
   rawKey: z.string().min(10),
@@ -14,85 +12,52 @@ const redeemBody = z.object({
   discordUserId: z.string().min(1),
 });
 
+function bffSecretOk(headers: Record<string, string | string[] | undefined>, env: ControlApiEnv): boolean {
+  if (!env.BFF_SERVER_SECRET) return false;
+  const h = headers["x-oryx-bff-secret"];
+  if (typeof h !== "string") return false;
+  return h === env.BFF_SERVER_SECRET;
+}
+
 export async function registerAuthRoutes(app: FastifyInstance, env: ControlApiEnv) {
+  const sessionTtlDays = 30;
+
   app.post("/v1/auth/redeem", async (req, reply) => {
     const body = redeemBody.parse(req.body);
     const db = getPrisma();
-    const keyHash = sha256Hex(body.rawKey);
-
-    const sessionTtlDays = 30;
-    const expiresAt = new Date(Date.now() + sessionTtlDays * 86_400_000);
 
     try {
-      const result = await db.$transaction(async (tx) => {
-        const key = await tx.controlAccessKey.findFirst({
-          where: { keyHash, status: ControlKeyStatus.ACTIVE },
-        });
-        if (!key) {
-          return { type: "invalid" as const };
-        }
-        if (key.expiresAt.getTime() < Date.now()) {
-          await tx.controlAccessKey.update({
-            where: { id: key.id },
-            data: { status: ControlKeyStatus.EXPIRED },
-          });
-          return { type: "expired" as const };
-        }
-        if (key.preboundGuildId && key.preboundGuildId !== body.guildId) {
-          return { type: "guild_mismatch" as const, keyId: key.id };
-        }
-
-        const updated = await tx.controlAccessKey.updateMany({
-          where: { id: key.id, status: ControlKeyStatus.ACTIVE },
-          data: {
-            status: ControlKeyStatus.REDEEMED,
-            redeemedAt: new Date(),
-            redeemedByUserId: body.discordUserId,
-            boundGuildId: body.guildId,
-          },
-        });
-        if (updated.count !== 1) {
-          return { type: "race" as const };
-        }
-
-        const sessionToken = randomTokenUrlSafe(32);
-        const tokenHash = sha256Hex(sessionToken);
-        await tx.controlSession.create({
-          data: {
-            tokenHash,
-            kind: "tenant",
-            discordUserId: body.discordUserId,
-            guildId: body.guildId,
-            expiresAt,
-          },
-        });
-        return { type: "ok" as const, sessionToken, keyId: key.id };
+      const result = await redeemAccessKey(db, {
+        rawKey: body.rawKey,
+        guildId: body.guildId,
+        discordUserId: body.discordUserId,
+        sessionTtlDays,
       });
 
-      if (result.type === "invalid" || result.type === "race") {
+      if (!result.ok) {
+        if (result.reason === "guild_mismatch") {
+          await writeControlAudit(db, {
+            actorKind: "tenant",
+            actorId: body.discordUserId,
+            action: "control.key.redeem_failed",
+            ip: req.ip,
+            metadata: { reason: "guild_mismatch", keyId: result.keyId },
+            pepper: env.AUDIT_PEPPER,
+          });
+          return reply.code(403).send({ error: "guild_mismatch" });
+        }
+        if (result.reason === "expired") {
+          return reply.code(400).send({ error: "expired_key" });
+        }
         await writeControlAudit(db, {
           actorKind: "tenant",
           actorId: body.discordUserId,
           action: "control.key.redeem_failed",
           ip: req.ip,
-          metadata: { reason: result.type },
+          metadata: { reason: result.reason },
           pepper: env.AUDIT_PEPPER,
         });
         return reply.code(400).send({ error: "invalid_key" });
-      }
-      if (result.type === "expired") {
-        return reply.code(400).send({ error: "expired_key" });
-      }
-      if (result.type === "guild_mismatch") {
-        await writeControlAudit(db, {
-          actorKind: "tenant",
-          actorId: body.discordUserId,
-          action: "control.key.redeem_failed",
-          ip: req.ip,
-          metadata: { reason: "guild_mismatch", keyId: result.keyId },
-          pepper: env.AUDIT_PEPPER,
-        });
-        return reply.code(403).send({ error: "guild_mismatch" });
       }
 
       await writeControlAudit(db, {
@@ -111,18 +76,80 @@ export async function registerAuthRoutes(app: FastifyInstance, env: ControlApiEn
         sameSite: "strict",
         secure,
         maxAge: sessionTtlDays * 86_400,
+        domain: env.COOKIE_DOMAIN || undefined,
       });
 
       return reply.send({
         ok: true,
         guildId: body.guildId,
-        expiresAt: expiresAt.toISOString(),
+        expiresAt: result.expiresAt.toISOString(),
       });
     } catch (e) {
       req.log.error({ e }, "redeem.transaction_failed");
       return reply.code(500).send({ error: "redeem_failed" });
     }
   });
-}
 
-export { TENANT_COOKIE };
+  /** Server-to-server: returns session token JSON for BFF (Next.js) to set first-party cookie. */
+  app.post("/v1/bff/redeem", async (req, reply) => {
+    if (!bffSecretOk(req.headers, env)) {
+      return reply.code(401).send({ error: "bff_unauthorized" });
+    }
+    const body = redeemBody.parse(req.body);
+    const db = getPrisma();
+
+    try {
+      const result = await redeemAccessKey(db, {
+        rawKey: body.rawKey,
+        guildId: body.guildId,
+        discordUserId: body.discordUserId,
+        sessionTtlDays,
+      });
+
+      if (!result.ok) {
+        if (result.reason === "guild_mismatch") {
+          await writeControlAudit(db, {
+            actorKind: "tenant",
+            actorId: body.discordUserId,
+            action: "control.key.redeem_failed",
+            ip: req.ip,
+            metadata: { reason: "guild_mismatch", keyId: result.keyId, via: "bff" },
+            pepper: env.AUDIT_PEPPER,
+          });
+          return reply.code(403).send({ error: "guild_mismatch" });
+        }
+        if (result.reason === "expired") {
+          return reply.code(400).send({ error: "expired_key" });
+        }
+        await writeControlAudit(db, {
+          actorKind: "tenant",
+          actorId: body.discordUserId,
+          action: "control.key.redeem_failed",
+          ip: req.ip,
+          metadata: { reason: result.reason, via: "bff" },
+          pepper: env.AUDIT_PEPPER,
+        });
+        return reply.code(400).send({ error: "invalid_key" });
+      }
+
+      await writeControlAudit(db, {
+        actorKind: "tenant",
+        actorId: body.discordUserId,
+        action: "control.key.redeemed",
+        ip: req.ip,
+        metadata: { keyId: result.keyId, guildId: body.guildId, via: "bff" },
+        pepper: env.AUDIT_PEPPER,
+      });
+
+      return reply.send({
+        ok: true,
+        sessionToken: result.sessionToken,
+        guildId: body.guildId,
+        expiresAt: result.expiresAt.toISOString(),
+      });
+    } catch (e) {
+      req.log.error({ e }, "bff.redeem_failed");
+      return reply.code(500).send({ error: "redeem_failed" });
+    }
+  });
+}

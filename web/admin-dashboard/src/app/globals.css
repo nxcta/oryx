@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --bg: #05060a;
+  --panel: rgba(12, 16, 28, 0.78);
+  --border: rgba(129, 140, 248, 0.22);
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --accent: #a78bfa;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(1000px 600px at 10% 0%, rgba(129, 140, 248, 0.14), transparent),
+    radial-gradient(900px 500px at 90% 0%, rgba(34, 211, 238, 0.1), transparent), var(--bg);
+  color: var(--text);
+}
+
+.glass {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35) inset, 0 20px 80px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(14px);
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition;
+}
+
+.btn-primary {
+  @apply bg-violet-400/15 text-violet-100 ring-1 ring-violet-300/30 hover:bg-violet-400/25;
+}
+
+.btn-ghost {
+  @apply text-slate-200 ring-1 ring-white/10 hover:bg-white/5;
+}
+
+.input {
+  @apply w-full rounded-lg border border-white/10 bg-black/35 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-300/40;
+}
+
+.label {
+  @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400;
+}
+
+.table {
+  @apply w-full border-collapse text-left text-sm;
+}
+
+.table th {
+  @apply border-b border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400;
+}
+
+.table td {
+  @apply border-b border-white/5 px-3 py-2 font-mono text-xs text-slate-200;
+}

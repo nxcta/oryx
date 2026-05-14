@@ -1,5 +1,5 @@
 import { AuditLogEvent } from "discord-api-types/v10";
-import { SecurityActionCategory } from "../types.js";
+import { SecurityActionCategory } from "../security/types.js";
 
 /** Map Discord audit log events to internal security categories. */
 export function mapAuditLogAction(action: AuditLogEvent | number): SecurityActionCategory {
@@ -56,9 +56,10 @@ export function mapAuditLogAction(action: AuditLogEvent | number): SecurityActio
       return SecurityActionCategory.INVITE_CREATE;
     case AuditLogEvent.InviteDelete:
       return SecurityActionCategory.INVITE_DELETE;
-    case AuditLogEvent.OverwriteCreate:
-    case AuditLogEvent.OverwriteUpdate:
-    case AuditLogEvent.OverwriteDelete:
+    /** Channel permission overwrite create/update/delete (numeric codes for cross-version compatibility). */
+    case 13:
+    case 14:
+    case 15:
       return SecurityActionCategory.OVERWRITE_UPDATE;
     default:
       return SecurityActionCategory.UNKNOWN;

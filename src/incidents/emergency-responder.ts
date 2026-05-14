@@ -1,6 +1,5 @@
 import { AuditLogEvent } from "discord-api-types/v10";
 import {
-  ChannelType,
   GuildVerificationLevel,
   PermissionFlagsBits,
   type Guild,
@@ -97,7 +96,7 @@ export class EmergencyResponder {
       try {
         if (me.permissions.has(PermissionFlagsBits.ManageWebhooks) && webhook.channelId) {
           const ch = guild.channels.cache.get(webhook.channelId);
-          if (ch && (ch.isTextBased() || ch.type === ChannelType.GuildForum)) {
+          if (ch && "fetchWebhooks" in ch && typeof ch.fetchWebhooks === "function") {
             const hooks = await ch.fetchWebhooks();
             const created = hooks.get(webhook.id);
             if (created) {

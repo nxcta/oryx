@@ -5,6 +5,7 @@ import rateLimit from "@fastify/rate-limit";
 import { ZodError } from "zod";
 import { loadControlEnv } from "./config/env.js";
 import { registerInternalKeyRoutes } from "./routes/internal-keys.js";
+import { registerInternalFleetRoutes } from "./routes/internal-fleet.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerTenantRoutes } from "./routes/tenant.js";
 import { getPrisma } from "./lib/prisma.js";
@@ -50,6 +51,7 @@ async function main() {
   app.get("/health", async () => ({ ok: true, service: "oryx-control-api" }));
 
   await registerInternalKeyRoutes(app, env);
+  await registerInternalFleetRoutes(app, env);
   await registerAuthRoutes(app, env);
   await registerTenantRoutes(app, env);
 
