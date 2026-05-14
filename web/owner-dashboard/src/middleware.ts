@@ -1,0 +1,38 @@
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+/**
+ * Keeps Supabase Auth cookies fresh when you add Supabase login later.
+ * Safe no-op for DB-only usage: still runs `getUser()` once per matched request.
+ */
+export async function middleware(request: NextRequest) {
+  const supabaseResponse = NextResponse.next({ request });
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) {
+    return supabaseResponse;
+  }
+
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          supabaseResponse.cookies.set(name, value, options);
+        });
+      },
+    },
+  });
+
+  await supabase.auth.getUser();
+  return supabaseResponse;
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};

@@ -42,6 +42,8 @@ Copy from `web/api-server/.env.example`:
 ### `web/owner-dashboard/.env.local`
 
 ```
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-or-anon-key
 CONTROL_API_URL=http://127.0.0.1:4000
 BFF_SERVER_SECRET=same-as-api-BFF_SERVER_SECRET
 ```
@@ -49,6 +51,8 @@ BFF_SERVER_SECRET=same-as-api-BFF_SERVER_SECRET
 ### `web/admin-dashboard/.env.local`
 
 ```
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-or-anon-key
 CONTROL_API_URL=http://127.0.0.1:4000
 ADMIN_API_TOKEN=same-as-api-ADMIN_API_TOKEN
 ```

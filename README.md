@@ -123,6 +123,7 @@ Operational hardening, hosting topology, licensing/key cryptography, CI/CD, DR, 
 - `docs/ENTERPRISE_PRODUCTION_AND_OPERATIONS.md`
 - `docs/DEPLOY_AND_RUN.md` (end-to-end run + env wiring)
 - `docs/WISPBYTE_BOT_HOSTING.md` (Discord bot on Wispbyte — **choose Node.js**)
+- `docs/VERCEL_SUPABASE_API.md` (**Vercel + Supabase client + separate API**)
 
 ## Tests
 
