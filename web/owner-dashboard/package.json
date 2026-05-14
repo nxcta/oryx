@@ -1,0 +1,13 @@
+{
+  "name": "@secubot/owner-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Tenant server-owner console (Next.js) — see README.md",
+  "scripts": {
+    "dev": "echo \"Bootstrap Next.js in this directory (see README).\" && exit 1",
+    "build": "echo \"Not generated yet\" && exit 1"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  }
+}

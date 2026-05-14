@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Per-guild security policy and thresholds (versioned for rollback).
+model GuildSecurityConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  version   Int      @default(1)
+  /// JSON: AntiNukeThresholds, lockdown presets, feature flags
+  policyJson Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incidents SecurityIncident[]
+  snapshots ConfigSnapshot[]
+}
+
+model ConfigSnapshot {
+  id        String   @id @default(cuid())
+  guildId   String
+  label     String?
+  payload   Json
+  createdAt DateTime @default(now())
+
+  config GuildSecurityConfig @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId, createdAt])
+}
+
+model SecurityIncident {
+  id             String   @id @default(cuid())
+  guildId        String
+  correlationId  String
+  severity       String
+  category       String
+  summary        String
+  /// Structured finding + actions taken
+  detailJson     Json
+  riskScore      Float
+  resolved       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  config GuildSecurityConfig @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId, createdAt])
+  @@index([correlationId])
+}
+
+/// Immutable append-only security event stream (SIEM-oriented).
+model SecurityEventLog {
+  id             String   @id @default(cuid())
+  guildId        String
+  correlationId  String
+  eventType      String
+  actorId        String?
+  targetId       String?
+  payload        Json
+  shardId        Int?
+  nodeId         String?
+  createdAt      DateTime @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model PermissionSnapshot {
+  id        String   @id @default(cuid())
+  guildId String
+  /// Roles + key overwrites hash for drift detection
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([guildId, createdAt])
+}
